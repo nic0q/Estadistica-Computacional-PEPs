@@ -32,6 +32,8 @@ datos = cargar_datos(nombre1,nombre2)
 
 * **En el documento se nos indica que son 5000 pacientes egresados el año 2021, sin embargo al obtener la frecuencia total de todos los datos se obtiene que son 20.000, esto ocurre porque existen pacientes repetidos que pueden pertenecer a más de un grupo, además no tenemos una forma concreta de saber que pacientes están repetidos, por lo tanto se toma como total, la suma de frecuencias de cada fila.**
 
+* **Los graficos al ocupar el N del sample dado varia demasiado por lo que los graficos son tomados referenciales con un seq por defecto (dist. hipergeométrica y Poisson)**
+
 #### ***2.1. Describa cada una de las variables del conjunto de datos indicando su clasificación según tipo: medición y precisión.***
 
 **Condición de egreso:** Cualitativa por medición: nominal y por precisión dicotómica.
@@ -156,22 +158,27 @@ Da la casualidad de que la cormobilidad que presenta mayor probabilidad de apari
 ##### ***2.2.4 Usando como base el diagnóstico principal con mayor probabilidad de fallecimiento (letalidad) en su hospital: ¿cuál es la probabilidad de que si el próximo año se hospitalizan 100 personas con esa patología, N de ellas fallezcan?***
 ```{r}
 N = sum((datos %>% filter(diagnostico == patologiaLetal)) %>% select(freq))
-x = sample(seq(5,50),1) # numero de elementos de la población
-n = 100
-k <- sum((datos %>% filter(diagnostico == patologiaLetal & egreso == "Fallecido(a)")) %>% select(freq))
+x = sample(seq(5,50),1) 
+n = 100 # numero de elementos de la población
+k <- sum((datos %>% filter(diagnostico == patologiaLetal & egreso == "Fallecido(a)")) %>% select(freq)) # Exitos
 distribHyper <- dhyper(x,k,N-k,n)
 cat("Considerando una distribución hipergeométrica, tenemos que la probabilidad de que si el proximo año se hospitalizan", n ,"personas con esa patología, N de ellas fallezcan es de", distribHyper)
 ```
 
-(Se hizo una prueba con N y 100, pero el grafico resultó demasiado "bizarro". Por lo tanto, para la grafica se considera N = 10)
 ```{r}
-
+# GRAFICO
+exitos=seq(0:20) #Exitos
+distribucion = dhyper(exitos,k,N-k,n)
+datoshyper=data.frame(exitos,distribucion)
+grafico = ggplot(data=datoshyper,aes(x=exitos,y=distribucion))
+grafico = grafico + geom_bar(stat="identity",fill="lightblue3")
+grafico = grafico + theme_bw() + ggtitle("Grafico de Distribución Hypergeometrica de N Fallecimientos")
+grafico = grafico + xlab("Personas fallecidas por la patologia") + ylab("Probabilidad de que fallezcan N personas")
+plot(grafico)
 ```
 
-
-
 #### ***2.2.5 ¿Qué puede concluir de los resultados con relación a las características y gestión de su establecimiento hospitalario?***
-Lo principal que se puede destacar de los resultados, es que el establecimiento hospitalario tiene una tasa de mortalidad que no es considerada alta. Usualmente, las tasas de mortalidades son consideradas altas cuando superan el 30%, pero la del establecimiento no supera el 27%. Además, de las 20000 personas (Tomando en consideración los supuestos declarados al principio de este documento), solo 4229 personas han fallecido, lo cual es menos de la mitad. Otras informaciones a destacar, es que el diagnostico con mayor probabilidad de fallecimiento corresponde a "3rd Degree Sideburns" y la cormobilidad mas presente en personas adultas es "Slack Tongue".
+Lo principal que se puede destacar de los resultados, es que el establecimiento hospitalario tiene una tasa de mortalidad que no es considerada alta. Usualmente, las tasas de mortalidades son consideradas altas cuando superan el 30%, pero la del establecimiento no supera el 27%. Además, de las 20000 personas (Tomando en consideración los supuestos declarados al principio de este documento), solo 4229 personas han fallecido, lo cual es menos de la mitad. Otras informaciones a destacar, es que el diagnostico con mayor probabilidad de fallecimiento corresponde a "3rd Degree Sideburns" y la cormobilidad mas presente en personas adultas es "None".
 
 #### ***2.3 Considerando la estancia de los/las pacientes atendidos/atendidas en su establecimiento hospitalario:***
 ##### ***2.3.1 ¿Cuál es el promedio de día de estadas (DE) de su establecimiento hospitalario?***
@@ -225,7 +232,6 @@ N=sample(seq(5,50),1)
 # 30 pacientes -> 1 hora
 # lambda(var)  -> 1 hora
 lambda = 30
-
 poisonDist <- 1 - dpois(N-1,lambda)
 cat("Considerando una distribución de Poisson, la probabilidad de que en la siguiente hora se atienda como mínimo a N pacientes es de",poisonDist,"Lo cual, si somos realistas, es bastante cercano a la realidad del trabajador del area de la salud")
 ```
