@@ -1,4 +1,4 @@
- 2022# PEP 1 Estadistica Computacional 13311 2022-1
+# PEP 1 Estadistica Computacional 13311 2022-1
 **Autores**: Nicolas Farfan y John Serrano
 **Fecha**: 27 de Abril de 2022
 
