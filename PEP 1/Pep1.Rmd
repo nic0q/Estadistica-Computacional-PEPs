@@ -1,0 +1,251 @@
+---
+title: "**PEP 1 ESTADISTICA COMPUTACIONAL - PARTE APLICADA**"
+author: "**Nícolas Farfán Cheneaux y John Serrano Carrasco**"
+date: '**2022-04-27**'
+output: html_document
+---
+
+```{r, include=FALSE}
+library("ggplot2")
+library("Rlab")
+library(tidyr)
+library(dplyr)
+library(plyr)          #Previamente descargue install.packages("plyr)
+library(tidyverse)
+```
+
+```{r}
+source("cargar_datos.R") #Descargue y guarde en la carpeta principal de su respuesta
+nombre1= "NICOLAS ANDRE FARFAN CHENEAUX"
+nombre2= "JOHN PATRICIO SERRANO CARRASCO"
+datos = cargar_datos(nombre1,nombre2)
+# (Testear Datos) knitr::kable(head(datos[,2:ncol(datos)])) #kable pertenece a la biblioteca knitr
+```
+
+### **Actividades**
+
+**SUPUESTOS: **
+
+* **Las indicaciones del enunciado, al referirse a patología se tomó como el "Diagnóstico" del paciente.**
+
+* **Las librerias adicionales que se ocuparon fueron  library("Rlab") library(tidyr) library(dplyr), la primera para las distribuciones utilizadas y las 2 ultimas para hacer los respectivos filtros de los datos en el data frame. También se ocupó library("ggplot2") para realizar graficas cuando era posible.**
+
+* **En el documento se nos indica que son 5000 pacientes egresados el año 2021, sin embargo al obtener la frecuencia total de todos los datos se obtiene que son 20.000, esto ocurre porque existen pacientes repetidos que pueden pertenecer a más de un grupo, además no tenemos una forma concreta de saber que pacientes están repetidos, por lo tanto se toma como total, la suma de frecuencias de cada fila.**
+
+* **Los graficos al ocupar el N del sample dado varia demasiado por lo que los graficos son tomados referenciales con un seq por defecto (dist. hipergeométrica y Poisson)**
+
+#### ***2.1. Describa cada una de las variables del conjunto de datos indicando su clasificación según tipo: medición y precisión.***
+
+**Condición de egreso:** Cualitativa por medición: nominal y por precisión dicotómica.
+
+**Comorbilidad:** Cualitativa por medición: nominal y por precisión politómica.
+
+**Diagnóstico:** Cualitativa por medición: nominal y por precisión politómioca.
+
+**Sexo Biológico:** Cualitativa por medición: nominal y por precisión politómica.
+
+**Promedio Edad:** Cuantitativa por medición: ratio y por precisión discreta.
+
+**Desviación estándar Edad:** Cuantitativa por medición: ratio y por precisión discreta.
+
+**Días de estada en el hospital:** Cuantitativa por medición: ratio y por precisión discreta.
+
+**Número de pacientes atendidos:** Cuantitativa por medición: ratio y por precisión discreta.
+
+#### ***2.2 . Considerando la letalidad de los/las pacientes atendidos/atendidas en su establecimiento hospitalario***
+##### ***Pregunta 2.2.1 ¿Cuál es la probabilidad que tiene un/una paciente de fallecer en su establecimiento hospitalario? Indique la tasa de mortalidad hospitalaria de su establecimiento.***
+Casos Favorables: El número de pacientes que fueron atendidos y fallecieron.
+
+Casos Totales: El total de pacientes atendidos.
+```{r}
+totalAtendidos <- sum(datos["freq"]) # Numero total de pacientes
+defunciones <- datos %>% filter(egreso=="Fallecido(a)") 
+totalDefunciones <- sum(defunciones["freq"]) # Numero total de defunciones
+probabilidadFallecimiento <- totalDefunciones/totalAtendidos  # Probabilidad de fallecer
+probabilidadFallecimiento
+```
+Tasa de mortalidad hospitalaria
+```{r}
+dadosAlta <- datos %>% filter(egreso=="Alta")
+totalDadosAlta <- sum(dadosAlta["freq"])
+tasaMortalidadHosp <- (totalDefunciones * 100) /totalDadosAlta
+tasaMortalidadHosp
+```
+
+Por lo tanto, considerando el numero total de pacientes, el cual corresponde a 20000 pacientes y el numero total de fallecidos, 4229 fallecidos, **la probabilidad de fallecer en el establecimiento hospitalario es de 0.21145** (21,15%). Además, considerando la probabilidad anterior, la **tasa de mortalidad hospitalario del establecimiento es de 26,81504%** lo cual al no estar sobre el 30%, se podria concluir que la tasa de mortalidad no es alta en el establecimiento hospitalario.
+
+##### ***Pregunta 2.2.2 ¿Cuál es el diagnóstico principal que tienen mayor probabilidad de fallecimiento (letalidad) en su hospital según cada sexo biológico?***
+Se agrupa cada diagnostico, calculando la frecuencia de cada uno: 
+
+Casos Totales: Personas de cada sexo que fueron atendidas para cada diagnostico.
+
+Casos Favorables: Personas de cada sexo que fueron atendidas y fallecieron de cada diagnóstico.
+
+###### Diagnostico de mayor probabilidad de fallecimiento por cada sexo: MASCULINO, FEMENINO, OTRO
+```{r}
+# Funcion que calcula el diagnostico de mayor probabilidad total (Sin considerar sexos)
+# No recibe una entrada, retorna un vector que tiene el diagnostico de mayor probabilidad junto a su valor de probabilidad
+diagnosticoMayorProb <- function(){
+  fallecidosTotal <- datos %>% select("diagnostico","freq","egreso") %>% filter(egreso=="Fallecido(a)") %>% group_by(diagnostico) %>% dplyr::summarise(freq=sum(freq))
+  totalAtendidosDiag <- datos %>% select("diagnostico","freq","egreso") %>% group_by(diagnostico) %>% dplyr::summarise(freq=sum(freq))
+  prob <- c(fallecidosTotal)$freq / c(totalAtendidosDiag)$freq
+  diagnosMayorProb <- fallecidosTotal[which.max(prob),1]
+  return (c(diagnosMayorProb,max(prob)))
+}
+
+# Funcion que obtiene el diagnostico con mayor probabilidad, considerando un sexo
+# Recibe el sexo como entrada, retorna el diagnostico que tiene la mayor probabilidad junto con su valor
+getDiagnosMayorProb<- function(sexop){
+  fallecidosTotal <- datos %>% select("diagnostico","sexo","freq","egreso") %>% filter(sexo==sexop & egreso=="Fallecido(a)") %>% group_by(diagnostico) %>% dplyr::summarise(freq=sum(freq)) # Total de fallecidos por ese diagnostico
+  totalAtendidosDiag <- datos %>% select("diagnostico","sexo","freq","egreso") %>% filter(sexo==sexop) %>% group_by(diagnostico) %>% dplyr::summarise(freq=sum(freq)) # Total atendidos del diagnostico
+  prob <- c(fallecidosTotal)$freq / c(totalAtendidosDiag)$freq
+  diagnosMayorProb <- fallecidosTotal[which.max(prob),1]
+  return (c(diagnosMayorProb,max(prob)))
+}
+# Diagnostico más letal sin distinción de sexo
+diagnosticoMayorProb()
+patologiaLetal = diagnosticoMayorProb()[1] # Se coloca de esta forma para ocupar esta variable más adelante
+# Diagnostico más letal del sexo femenino
+getDiagnosMayorProb("Femenino")
+# Diagnostico más letal del sexo masculino
+getDiagnosMayorProb("Masculino")
+# Diagnostico más letal del sexo otro
+getDiagnosMayorProb("Otro")
+```
+
+```{r}
+# GRAFICO
+probabilidades = c(getDiagnosMayorProb("Femenino"), getDiagnosMayorProb("Masculino"), getDiagnosMayorProb("Otro"), diagnosticoMayorProb())
+probabilidades = c(probabilidades[2][1], probabilidades[4][1], probabilidades[6][1], probabilidades[8][1])
+sexos = c("Femenino","Masculino","Otro", "Total")
+datoss = data.frame(sexos,probabilidades)
+grafico = ggplot(data = datoss, aes(x = sexos, y = probabilidades))
+grafico = grafico + geom_bar(stat = "identity", fill = "lightblue3")
+grafico = grafico + theme_bw() + ggtitle("Grafico de probabilidades de los diagnosticos con mayor probabilidad de los 3 sexos y total")
+grafico = grafico + xlab("Sexos") + ylab("Probabilidades del mayor diagnostico")
+plot(grafico)
+```
+
+En el sexo **Femenino**, el diagnostico que tiene mayor probabilidad de fallecimiento corresponde a **"3rd Degree Sideburns"**, con una probabilidad de **0.2732095**. (27,32%)
+
+En el sexo **Masculino**, el diagnostico que tiene mayor probabilidad de fallecimiento corresponde a **"King Complex"**, con una probabilidad de **0.2364217**. (23,64%)
+
+En el sexo **"Otro"**, el diagnostico que tiene mayor probabilidad de fallecimiento corresponde a **"Spare Ribs"**, con una probabilidad de **0.3384615**. (33,85%)
+
+Si dejamos las dinticiones de sexo de lado, el diagnostico que tiene la mayor probabilidad de fallecimiento es **"3rd Degree Sideburns"**, con una probabilidad de **0.2429448**,(24,29%) esto considerando el total de personas. 
+
+##### ***2.2.3 ¿Cuál es la comorbilidad que presenta mayor probabilidad de aparición en personas adultas fallecidas en su establecimiento hospitalario?***
+```{r}
+# Funcion que calcula el total de Adultos Fallecidos
+# Carece de entrada y retorna la cantidad de personas adultas fallecidas
+getTotalFallecidosAdultosComorb <- function(){
+  totalMayorEdadAtendidas <- (datos %>% filter(prom_edad >= 18) %>% dplyr::summarise(freq=sum(freq)))[,1]
+  fallecidasAdultas <- datos %>%  select("comorbilidad", "prom_edad", "egreso", "freq") %>% filter(prom_edad>=18) %>% group_by(comorbilidad) %>% dplyr::summarise(freq=sum(freq))
+  return(fallecidasAdultas)
+}
+# Funcion que calcula cuantos adultos tienen comorbilidades
+# Carece de entrada y retorna la cantidad de personas adultas con cormobilidades
+getComorbAdultos <- function(){
+  totalMayorEdadAtendidas <- (datos %>% filter(prom_edad >= 18) %>% dplyr::summarise(freq=sum(freq)))[,1]
+  fallecidasAdultas <- datos %>%  select("comorbilidad", "prom_edad", "egreso", "freq") %>% filter(prom_edad>=18 & egreso == "Fallecido(a)") %>% group_by(comorbilidad) %>% dplyr::summarise(freq=sum(freq))
+  return(fallecidasAdultas)
+}
+probComorb <- getComorbAdultos()$freq/getTotalFallecidosAdultosComorb()$freq
+c(getComorbAdultos()[which.max(probComorb),1],max(probComorb))
+```
+Da la casualidad de que la cormobilidad que presenta mayor probabilidad de aparición es **"None"** (lo cual si es parte de los datos de la tabla), con una probabilidad de **0.2356479** (23,56%)
+
+##### ***2.2.4 Usando como base el diagnóstico principal con mayor probabilidad de fallecimiento (letalidad) en su hospital: ¿cuál es la probabilidad de que si el próximo año se hospitalizan 100 personas con esa patología, N de ellas fallezcan?***
+```{r}
+N = sum((datos %>% filter(diagnostico == patologiaLetal)) %>% select(freq))
+x = sample(seq(5,50),1) 
+n = 100 # numero de elementos de la población
+k <- sum((datos %>% filter(diagnostico == patologiaLetal & egreso == "Fallecido(a)")) %>% select(freq)) # Exitos
+distribHyper <- dhyper(x,k,N-k,n)
+cat("Considerando una distribución hipergeométrica, tenemos que la probabilidad de que si el proximo año se hospitalizan", n ,"personas con esa patología, N de ellas fallezcan es de", distribHyper)
+```
+
+```{r}
+# GRAFICO
+exitos=seq(0:20) #Exitos
+distribucion = dhyper(exitos,k,N-k,n)
+datoshyper=data.frame(exitos,distribucion)
+grafico = ggplot(data=datoshyper,aes(x=exitos,y=distribucion))
+grafico = grafico + geom_bar(stat="identity",fill="lightblue3")
+grafico = grafico + theme_bw() + ggtitle("Grafico de Distribución Hypergeometrica de N Fallecimientos")
+grafico = grafico + xlab("Personas fallecidas por la patologia") + ylab("Probabilidad de que fallezcan N personas")
+plot(grafico)
+```
+
+#### ***2.2.5 ¿Qué puede concluir de los resultados con relación a las características y gestión de su establecimiento hospitalario?***
+Lo principal que se puede destacar de los resultados, es que el establecimiento hospitalario tiene una tasa de mortalidad que no es considerada alta. Usualmente, las tasas de mortalidades son consideradas altas cuando superan el 30%, pero la del establecimiento no supera el 27%. Además, de las 20000 personas (Tomando en consideración los supuestos declarados al principio de este documento), solo 4229 personas han fallecido, lo cual es menos de la mitad. Otras informaciones a destacar, es que el diagnostico con mayor probabilidad de fallecimiento corresponde a "3rd Degree Sideburns" y la cormobilidad mas presente en personas adultas es "None".
+
+#### ***2.3 Considerando la estancia de los/las pacientes atendidos/atendidas en su establecimiento hospitalario:***
+##### ***2.3.1 ¿Cuál es el promedio de día de estadas (DE) de su establecimiento hospitalario?***
+```{r}
+totalDiasEstada <- sum(datos["DE"]*datos["freq"])
+promedioDE <- totalDiasEstada/totalAtendidos
+promedioDE
+```
+El **promedio de dias de estadas** en el establecimiento hospitalario es de **100.7746 dias**.
+
+##### ***2.3.2 ¿Cuál es la probabilidad de que un paciente pediátrico (menor a 18 años) sea dado de alta de la patología más frecuente después de 30 días de estada? Asuma en ambos casos una distribución normal y una desviación estándar típica de 0.2 para los DE.***
+```{r}
+# P(X>30) = 1 - P(X<=30)
+pedriaticos <- datos %>% filter(prom_edad < 18 & egreso == "Alta")
+totalDiasEstadaPat <- sum(pedriaticos["DE"]*pedriaticos["freq"])
+totalPacientes = sum(pedriaticos["freq"])
+media = totalDiasEstadaPat / totalPacientes
+1 - pnorm(30,mean=media,sd=0.2)
+```
+Considerando una distribución normal, 30 dias de estada y una desviación estandar típica de 0.2, **la probabilidad de que un paciente pediatrico sea dado de alta de la patología mas frecuente es de 1**. (La distribución normal da 0)
+
+##### ***2.3.3 ¿Cuál es la probabilidad de que si usted es o ustedes son hospitalizados en su establecimiento hospitalario sean dados de alta antes de los 10 días? Al igual que el ejercicio anterior, asuma una distribución normal y una desviación estándar típica de 0.2 para los DE.***
+Ambos no tenemos ninguna comorbilidad ni tenemos un diagnostico que se encuentra presente en el conjunto de datos que aquí se plantea, por lo tanto nuestro estado inicial no influye en el resultado.
+```{r}
+# P(X<10)
+pnorm(10,mean=promedioDE,sd=0.2)
+```
+##### ***2.3.4 ¿Qué puede concluir de los resultados con relación a las características y gestión de su establecimiento hospitalario?***
+
+Se puede concluir que en el hospital, los pacientes tienen un **promedio de DE de 100,7746** dias y que los pacientes pedriaticos **siempre son dados de alta** cuando tienen la patologia mas frecuente y pasan 30 dias de entrada (Probabilidad 1, por lo tanto es un evento con 100% de probabilidad de ocurrir). 
+
+#### ***2.4 Considerando elementos propios de la atención hospitalaria.***
+##### ***2.4.1 Si usted ve/ustedes ven salir de su hospital a cuatro pacientes dados de alta del hospital caminando uno tras otro: ¿cuál es la probabilidad de que todos/todas ellos/ellas hayan tenido la patología con mayor probabilidad de aparición atendida en su establecimiento?***
+```{r}
+# Condiciones iniciales:
+# Se sabe que fueron dados de alta, se filtran los que fueron dados de alta
+# por lo tanto se selecciona los casos posibles que el paciente tenga Fractured Bones y haya sido dado de alta, entonces
+casosTotales <- sum(datos %>% filter(egreso=="Alta" & diagnostico == patologiaLetal) %>% select("freq"))
+# Los casos favorables son 4
+casosFavorables <- 4
+prob <- 4/casosTotales
+prob
+```
+La probabilidad de que todos aquellos pacientes hayan tenido la **patologia con mayor probabilidad** de aparicion es de **0.006482982**.
+
+##### ***2.4.2 Usted ha/ustedes han decidido ir al área ambulatoria de consultas médicas. Si entre todos/todas los/las especialistas médicos se está atendiendo un promedio a treinta pacientes por hora ¿cuál es la probabilidad que en la siguiente hora se atienda como mínimo a N pacientes?***
+```{r}
+# P(X>=N) = 1 - P(X<N)
+N=sample(seq(5,50),1)
+# Regla de 3
+# 30 pacientes -> 1 hora
+# lambda(var)  -> 1 hora
+lambda = 30
+poisonDist <- 1 - dpois(N-1,lambda)
+cat("Considerando una distribución de Poisson, la probabilidad de que en la siguiente hora se atienda como mínimo a N pacientes es de",poisonDist,"Lo cual, si somos realistas, es bastante cercano a la realidad del trabajador del area de la salud")
+```
+
+```{r}
+# GRAFICO
+pacientes=seq(5:60)
+lambda=30
+poissondist = dpois(pacientes,lambda)
+datospoi=data.frame(pacientes,poissondist)
+grafico = ggplot(data=datospoi,aes(x = pacientes,y=poissondist))
+grafico = grafico + geom_bar(stat="identity",fill="lightblue3")
+grafico = grafico + theme_bw() + ggtitle("Grafico Distribución de Poisson de N Pacientes")
+grafico = grafico + xlab("Pacientes") + ylab("Probabilidad de que el paciente sea atendido en la siguiente hora")
+plot(grafico)
+```
+

@@ -1,9 +1,9 @@
-# PEP 1 Estadistica Computacional 13311 2022-1
+# PEP 1 y 2 Estadistica Computacional 13311 2022-1
 * **Autores**: Nicolas Farfan y John Serrano
-* **Fecha**: 27 de Abril de 2022
+* **Fecha**: 27 de Abril de 2022 y 5 de Julio de 2022
 
 ## Descripcion:
-Esta es el desarrollo de la PEP 1 de Estadística Computacional 13311. Se utilizó RMarkdown para poder crear un documento html de los desarrollos.
+Esta es el desarrollo de la PEP 1 y 2 de Estadística Computacional 13311. Se utilizó RMarkdown para poder crear un documento html de los desarrollos.
 La PEP consistia en distintas preguntas asumiendo que se tiene un hospital con cierta información. 
 
 ## Prerrequisitos
@@ -17,5 +17,8 @@ el Markdown se cargará el archivo html para poder visualizar todo el desarrollo
 ## RPUBS
 * Link de RPUBS: https://rpubs.com/PoodDev/895542
 
-## Evaluación después de la revisión
+## Evaluación después de la revisión PEP 1
 * Nota: 6.3 / 7.0
+
+## Evaluación después de la revisión PEP 2
+* Nota: 6.5 / 7.0

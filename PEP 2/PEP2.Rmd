@@ -1,0 +1,223 @@
+---
+title: "**PEP 2 Estadistica Computacional 13311**"
+author: "**Nicolas Farfán Cheneaux y John Serrano Carrasco.**"
+date: "**`r Sys.Date()`**"
+output: html_document
+---
+
+```{r, include = FALSE}
+library("EnvStats")
+library("psych")
+library("BSDA")
+library("nortest")
+library("ggplot2")
+```
+
+#### **Pregunta 1: Uno de los principales desafíos en el campo de la Bioinformática es la predicción de la estructuras tridimensional de proteínas usando como base su estructura primaria (secuencias de aminoácidos). Este problema complejo, NP-hard, es abordado en ciencia de la computación como un problema de optimización usando algoritmos de aproximación estocástico**
+
+#### **El trabajo desarrollado por (Inostroza-Ponta et al. 2020) propuso varios algoritmos para lidiar con este problema, dos de ellos son LS1 y LS2. En su trabajo estos algoritmos fueron ejecutados 31 veces para predecir la estructura de la proteína 3P7K, registrando los errores entre a la estructura original de la proteína y su estimación para cada ejecución (RMSD). Los resultados simulados basados en la media y desviación estándar de la publicación se pueden descargar desde este sitio.**
+
+* **Analice los datos y determine si uno de los dos algoritmos logró predicciones con menor error para la proteína 3P7K.**
+
+* **Contextualice su respuesta para el problema.**
+
+Se leen los datos en formato .csv
+
+```{r}
+datos = read.csv2("pregunta1.csv")
+```
+
+#### **Estadística Descriptiva**
+
+Se analiza el problema desde el punto de vista de estadística descriptiva, diagramaremos un diagrama de caja y generaremos diagramas de centralidad y disperción
+
+#### **Realizamos el diagrama de caja**
+```{r}
+algo1 = as.numeric(datos$rmsd[datos$algoritmo == "LS1"])
+algo2 = as.numeric(datos$rmsd[datos$algoritmo == "LS2"])
+valuesx <- c("Algoritmo 1","Algoritmo 2")
+colbox <- c("cyan","cyan2")
+boxplot(algo1,algo2,main="Algoritmos",names = valuesx,xlab = "algoritmos", ylab = "RMSD",col = colbox)
+boxplot
+```
+
+#### **Obtenemos las medidas de centralidad y disperción**
+
+```{r}
+estadisticos = describeBy(as.numeric(datos$rmsd), datos$algoritmo, mat = F)
+estadisticos
+```
+
+#### **Evaluación de supuestos paramétricos**
+
+#### **Aplicamos el test de normalidad mediante los test de Shapiro-Wilk y Lillie**
+
+```{r}
+# Conjunto completo
+t1a=lillie.test(as.numeric(datos$rmsd))
+t1b=shapiro.test(as.numeric(datos$rmsd))
+print(t1a)
+print(t1b)
+# Algoritmo 1
+t1a = lillie.test(algo1)
+t1b = shapiro.test(algo1)
+print(t1a)
+print(t1b)
+# Algoritmo 2
+t1a = lillie.test(algo2)
+t1b = shapiro.test(algo2)
+print(t1a)
+print(t1b)
+```
+
+Como se puede observar las pruebas de contraste indican que siguen una distribución normal, evaluados de forma separada y como conjunto, ya que en todas las pruebas se obtuvo un **p-value > 0.05**, con un nivel de confianza del **95%**
+
+```{r}
+#QQplot
+qqnorm(as.numeric(datos$rmsd), pch = 19, col = "gray50")
+qqline(as.numeric(datos$rmsd))
+```
+
+#### **Evaluación de homocedasticidad**
+
+Podemos aplicar la prueba F para evaluar el principio de homocesdasticidad.
+
+```{r}
+#Prueba F
+t1 = var.test(algo1,algo2,conf.level=0.95)
+print(t1)
+```
+
+Como se puede observar el **p-value > a 0.05** por lo tanto se acepta la hipotesis nula, con un interavalo de confianza del **95%** entonces se concluye que los datos tienen una varianza homogenea.
+
+#### **Analisis de muestras Pareadas o no Pareadas**
+
+Se considera que las muestras son independientes pues su ejecución no depende del otro, ya que son probados en torno a una proteina y en condiciones distintas.
+Luego de realizar estas pruebas de contraste, se concluye que se debe aplicar un **test paramétrico**, porque ambas muestras siguen una distribución normal, con varianza homogénea, muestras de tamaño mayor a 30 y **no pareadas** o **independiente**.
+Por lo tanto se procede a ocupar el Welch t-test para 2 muestras.
+
+#### **Welch t-test**
+
+Se plantea la hipótesis nula de que las muestras son iguales.
+
+```{r}
+resp = t.test(as.numeric(rmsd)~algoritmo, data = datos, conf.level = 0.95, paired = F)
+print(resp)
+```
+
+Despues de aplicar el t-test para 2 muestras se obtiene que el p-value es menor a 0.05, por lo tanto se rechaza la **hipotesis nula** y se concluye que ambas muestras son distintas, respondiendo a la pregunta 1, a partir de las medias se puede concluir que el algoritmo con menor media es el LS1 con 3.017226, por lo tanto se concluye que el algoritmo LS1 logró predicciones con menor error para la proteína **3P7K**.
+
+#### **Pregunta 2. Un estudio desarrollado en Cuba analizó la relación entre la enfermedad renal quística adquirida (ERQA) (Bacallao 2014), y su relación con variables clínicas, demográficas y antropométricas en pacientes dialíticos.**
+
+#### **Los autores indicaron como parte de los resultados de su estudio, la existencia de una relación “directa” y “moderada” entre el tiempo de duración de las sesiones de hemodiálisis (meses) y número de quistes en los pacientes. Al capturar los datos originales del estudio (Descarga) usando la herramienta WebPlotDigitizer y la biblioteca ggplot2, se obtuvo el siguiente gráfico:**
+
+* **Use el coeficiente de correlación de Pearson para verificar y concluir respecto a la relación señalada por los autores. Para este fin utilice la función cor.test().**
+
+Cargamos los datos a trabajar. Estos corresponden a un tiempo y a una cantidad de quistes. La variable dependiente es el tiempo y la cantidad de quistes es la variable independiente.
+Podemos definir una hipotesis: El tiempo y la cantidad de quistes si estan relacionadas entre si directamente.
+
+```{r}
+datos <- read.csv2(file = 'pregunta2.csv')
+# datos
+```
+
+```{r}
+tiempo = as.numeric(datos$Tiempo)
+quistes = as.numeric(datos$Quistes)
+cor.test(tiempo, quistes)
+```
+
+De lo anterior podemos obtener varias cosas interesante. Primero, el p-value obtenido es muy pequeño, estando muy por debajo de 0,05. La correlación es 0,75, el valor de la t de student es de 7,7424 y los grados de libertad son 46.
+
+* **Proponga y evalúe un modelo de regresión lineal simple para explicar la relación entre tiempo en hemodiálisis y número de quistes. Grafique.**
+
+```{r}
+# Utilizando la funcion lm para definir el modelo de regresion lineal simple
+mod = lm(quistes ~ tiempo, datos)
+plot(tiempo, quistes)
+title("Número de quistes y tiempo en hemodiálisis")
+abline(mod)
+print(mod)
+```
+
+Por lo tanto, nuestro modelo que se ajusta a los datos es:
+
+$$ y = mx + c $$
+$$ y = 1024*10^{-5}m + 4155*10^{-5}$$
+Si miramos el gráfico, podemos observar de que si bien la gran mayoria de los puntos se acerca al modelo planteado, **hay puntos que no se acercan para nada al modelo.** Podemos creer que tal vez, el modelo no se adapta muy bien a los datos, **pero aún no podemos concluir como tal.**
+
+Podemos obtener mas informacion del modelo construido:
+
+```{r}
+summary(mod)
+```
+
+Uno de los datos importantes es el **coeficiente de determinación**
+
+```{r}
+print(summary(mod)$r.squared)
+```
+
+Notemos que la idea es que el coeficiente de determinación sea un valor **muy cercano a 1**, generalmente 0,99, ya que con un valor así podemos decir que el modelo propuesto es muy bueno para los datos. Pero como podemos observar del calculo anterior, el coeficiente de determinación es **0,57**, por lo que el modelo propuesto no es muy bueno para los datos, teniendo una diferencia de 0,42 comparado con 0,99.
+
+Si observamos los p-values, el del intervalo es mayor a 0,05, pero el de tiempo es muy bajo. Por lo tanto:
+
+* **Se acepta la hipótesis Nula de que el intercepto no es representativo y vale 0.**
+
+* **Se rechaza la hipótesis Nula de que la pendiente de la recta es 0**
+
+Considerando lo anterior, el modelo se puede reducir a:
+
+$$ y = 1024*10^{-5}m + 0$$
+
+Finalmente, podemos generar una zona de confianza para ver que puntos estan representados por el modelo generado
+```{r}
+confianza = confint(mod, level = 0.95)
+print(confianza)
+
+
+grafico = ggplot(datos,aes(x=tiempo, y=quistes, label= "")) +
+  geom_point(aes(tiempo,quistes),datos,color = "green")+
+  theme_bw() + ylab("Numero de quistes")+
+  xlab("Tiempo en hemodiálisis en meses") + ggtitle("Número de quistes y tiempo en hemodiálisis") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(check_overlap = TRUE) +
+  geom_line(aes(tiempo,quistes),datos,color="blue",cex=0.1) +
+  geom_smooth(method ="lm", formula = y ~ x,level=0.95)
+plot(grafico)
+```
+
+De lo anterior, **podemos concluir** que utilizando un nivel de confianza del 95% **si existe una relación entre tiempo y el número de quistes.** Si es directa o no va a depender bien del tiempo, ya que puede variar en algunos casos, pero generalmente tiende a ser directa. Sin embargo, el **modelo propuesto no es el adecuado para todos los puntos de datos**, e incluso con zonas de confianza se puede observar que varios puntos quedan fuera de estas zonas.
+
+#### **Pregunta 3: El trabajo desarrollado por (Navarrete-Mejía 2020) evaluó si la diabetes e hipertensión arterial son factores de riesgo de mortalidad en pacientes con Covid-19. Para ello, los autores analizaron datos de pacientes mayores a 30 años atendidos en el Hospital de Emergencia Ate Vitarte (HEAV) en los meses de marzo y agosto 2020. La totalidad de pacientes tenía diagnóstico confirmado COVID-19.**
+
+#### **El resumen de pacientes fallecidos y no fallecidos (alta médica) para cada comorbilidad es el siguiente:**
+
+* **Determine si la diabetes e hipertensión son factores de riesgo para la mortalidad en pacientes COVID-19. Estudie ambas comorbilidades de manera independiente.**
+
+* **Analice los resultados obtenidos contextualizando su respuesta al problema.**
+
+Tenemos grupos independiente: La Diabetes y la Hipertensión. Aplicaremos la prueba de chi-square ya que tenemos proporciones con las cuales podemos trabajar. Podemos crear una matriz con la información del enunciado:
+
+#### **Comorbilidad 1: Diabetes**
+
+* La hipótesis nula es que hay no hay una relación entre las proporciones observadas de pacientes con diabetes y el COVID-19.
+
+```{r}
+diabetes <- data.matrix(data.frame(c(111,542),c(169,1125)))
+diabetes
+chisq.test(diabetes)
+```
+Como el p-value es **0,02323**, lo cual es menor a 0,05, entonces se rechaza la hipótesis nula y se **acepta la hipótesis alternativa** de hay una concordancia significativa y por lo tanto, **la diabetes es factor de riesgo para COVID-19.**
+
+#### **Comorbilidad 2: Hipertensión**
+
+* La hipótesis nula es que hay no hay una relación entre las proporciones observadas de pacientes con hipertensión y el COVID-19.
+
+```{r}
+hipertension <- data.matrix(data.frame(c(157,496),c(186,1108)))
+hipertension
+chisq.test(hipertension)
+```
+
+Como el p-value es **muy menor a 0,05**, entonces se rechaza la hipótesis nula y se **acepta la hipótesis alternativa** de hay una concordancia significativa y por lo tanto, **la hipertensión es factor de riesgo para COVID-19.**
